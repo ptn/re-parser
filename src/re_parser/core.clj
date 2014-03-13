@@ -1,44 +1,49 @@
 (ns re-parser.core)
 
-(declare regex)
+(declare regex repeatable)
 
 (defn group [string]
-  (when (and (= (first string) \()
-             (= (last string) \)))
-    (when-let [reg-result (regex (.substring string 1 (dec (count string))))]
-      [:group reg-result ])))
+  (when (= (first string) \()
+    (when-let [[reg-parsed reg-unparsed] (regex (.substring string 1))]
+      (when (= (first reg-unparsed) \))
+        [[:group reg-parsed] (.substring reg-unparsed 1)]))))
 
 (defn conc [string]
   (when (#{\1\2\3\4\5\6\7\8\9\0\a\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}
          (first string))
-    (if (= 1 (count string))
-      (first string)
-      (when-let [rep-result (repeatable (.substring string 1))]
-        [:conc (first string) rep-result]))))
+    (if-let [[rep-parsed rep-unparsed] (repeatable (.substring string 1))]
+      [[:conc (first string) rep-parsed] rep-unparsed]
+      [(first string) (.substring string 1)])))
 
 (defn groupable [string]
   (or (group string)
       (conc string)))
 
 (defn star [string]
-  (when (= (last string) \*)
-    (when-let [gr-result (groupable (.substring string 0 (dec (count string))))]
-      [:star gr-result])))
+  (when-let [[gr-parsed gr-unparsed] (groupable string)]
+    (when (= (first gr-unparsed) \*)
+      [[:star gr-parsed] (.substring gr-unparsed 1)])))
 
 (defn repeatable [string]
-  (or (groupable string)
-      (star string)))
+  (or (star string)
+      (groupable string)))
 
 (defn or-regex [string]
-  (let [pipe-pos (.indexOf string "|")]
-    (when-not (= pipe-pos -1)
-      (let [repeatable-str (.substring string 0 pipe-pos)
-            regex-str (.substring string (inc pipe-pos))]
-        (let [rep-result (repeatable repeatable-str)
-              reg-result (regex regex-str)]
-          (when (and rep-result reg-result)
-            [:or rep-result reg-result]))))))
+  (when-let [[rep-parsed rep-unparsed] (repeatable string)]
+    (when (= (first rep-unparsed) \|)
+      (when-let [[reg-parsed reg-unparsed] (regex (.substring rep-unparsed 1))]
+        [[:or rep-parsed reg-parsed] reg-unparsed]))))
+
+(defn conc-repeatable [string]
+  (when-let [[rep1-parsed rep1-unparsed] (repeatable string)]
+    (when-let [[rep2-parsed rep2-unparsed] (repeatable rep1-unparsed)]
+      [[:conc rep1-parsed rep2-parsed] rep2-unparsed])))
 
 (defn regex [string]
   (or (or-regex string)
+      (conc-repeatable string)
       (repeatable string)))
+
+(defn parse [string]
+  (let [[parsed unparsed] (regex string)]
+    parsed))
