@@ -1,5 +1,29 @@
 (ns re-parser.core)
 
+;; Grammar:
+
+;; regex := or-regex
+;;       |  conc-repeatable
+;;       |  repeatable
+
+;; or-regex := repeatable '|' regex
+
+;; conc-repeatable := repeatable repeatable
+
+;; repeatable := groupable
+;;            |  star
+
+;; star := groupable '*'
+
+;; groupable := group
+;;           |  concat
+
+;; group := '(' regex ')'
+
+;; concat := alphanum repeatable
+;;        |  alphanum
+
+
 (declare regex repeatable)
 
 (defn group [string]
