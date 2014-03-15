@@ -17,11 +17,11 @@
 
 ;; groupable := group
 ;;           |  concat
+;;           |  alphanum
 
 ;; group := '(' regex ')'
 
-;; concat := alphanum repeatable
-;;        |  alphanum
+;; conc := alphanum repeatable
 
 
 (declare regex repeatable)
@@ -32,16 +32,20 @@
       (when (= (first reg-unparsed) \))
         [[:group reg-parsed] (.substring reg-unparsed 1)]))))
 
-(defn conc [string]
+(defn alphanum [string]
   (when (#{\1\2\3\4\5\6\7\8\9\0\a\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z}
          (first string))
-    (if-let [[rep-parsed rep-unparsed] (repeatable (.substring string 1))]
-      [[:conc (first string) rep-parsed] rep-unparsed]
-      [(first string) (.substring string 1)])))
+    [(first string) (.substring string 1)]))
+
+(defn conc [string]
+  (when-let [[alpha-parsed alpha-unparsed] (alphanum string)]
+    (when-let [[rep-parsed rep-unparsed] (repeatable alpha-unparsed)]
+      [[:conc (first string) rep-parsed] rep-unparsed])))
 
 (defn groupable [string]
   (or (group string)
-      (conc string)))
+      (conc string)
+      (alphanum string)))
 
 (defn star [string]
   (when-let [[gr-parsed gr-unparsed] (groupable string)]
